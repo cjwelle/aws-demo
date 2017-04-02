@@ -1,0 +1,18 @@
+--- #Build Base-AMI Ubuntu Trusty 14.04 in region
+- name: Check for Source AMI
+  fail: msg="Source AMI not found"
+  failed_when: not (source_ami is defined and source_ami)
+- name: Create {{ service }} AMI
+  shell: >
+    packer build \
+          -var "source_ami={{ source_ami }}" \
+          -var "region={{ region }}" \
+          -var "vpc_id={{ vpc_id }}" \
+          -var "subnet_id={{ subnet_id }}" \
+          -var "service_name={{ service_name }}" \
+          {{wrk_home}}/services/{{ service }}/{{ service }}_ami.json
+  # args:
+  #   chdir: playbooks/services/{{ service }}/
+  register: packer
+- name: Display packer output
+  debug: var=packer

@@ -1,0 +1,25 @@
+---
+
+- name: Update apt repos.
+  apt: update_cache=yes
+
+- name: Upgrade distribution
+  apt: upgrade=dist
+
+- name: Install common apt packages.
+  apt: name={{ item }}
+  with_items:
+    - python-netaddr
+    - python-dev
+    - python-pip
+    - unzip
+    - python-requests
+    - iftop
+    - sysstat
+    - jq
+    - htop
+    - wget
+    - curl
+    - vim
+    - awscli
+    - git

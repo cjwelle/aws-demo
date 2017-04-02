@@ -1,0 +1,5 @@
+---
+# defaults file for infrastructure
+infra_stack_name: CrnkyClds-app-Infrastructure
+region: us-west-2
+stack_state: present

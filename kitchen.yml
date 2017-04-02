@@ -1,0 +1,52 @@
+---
+- name: Kitchen Services Install
+  become: true
+  become_method: 'sudo'
+  hosts: all
+  connection: local
+
+  tasks:
+    - name: Add Apt Ansible Repositories
+      apt_repository: repo={{ item }} state=present mode=644
+      with_items:
+        - "ppa:ansible/ansible"
+
+    - name: Apt update
+      apt: update_cache=yes
+
+    - name: Install or update packages
+      apt: name={{ item }} state=latest
+      with_items:
+        - software-properties-common
+        - git
+        - python-pip
+        - ansible
+        - asciidoc
+        - unzip
+        - htop
+        - jq
+        - tree
+        - vim
+
+    - name: Install or update pip
+      command: 'pip install pip --upgrade'
+      become: true
+
+    - name: Install pip services
+      command: 'pip install {{ item }}'
+      become: true
+      with_items:
+        - awscli
+        - boto
+        - netaddr
+        - distami
+        - httpie
+
+    - name: Install Packer
+      unarchive: src=https://releases.hashicorp.com/packer/0.12.2/packer_0.12.2_linux_amd64.zip dest=/usr/local/bin/ copy=no
+
+    - name: Create Workfolder
+      file: path=/home/{{ansible_ssh_user}}/workfolder state=directory owner={{ansible_ssh_user}} group={{ansible_ssh_user}} mode=0555
+
+    - name: Set wrk_folder env
+      lineinfile: dest=/home/{{ansible_ssh_user}}/.bashrc  line="export wrk_home=/home/{{ansible_ssh_user}}/workfolder"

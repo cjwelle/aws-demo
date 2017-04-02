@@ -1,0 +1,9 @@
+---
+- name: Remove ubuntu authorized_keys file
+  become: true
+  become_method: sudo
+  become_user: root
+  #shell: rm -rf /etc/apt/sources.list*
+  file:
+    path=/home/ubuntu/.ssh/authorized_keys
+    state=absent

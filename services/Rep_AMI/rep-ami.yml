@@ -1,0 +1,24 @@
+--- #Copy all AMI's in a AWS Account/Region to other Regions.
+- hosts: localhost
+  connection: local
+  gather_facts: False
+  vars:
+    region: us-west-2
+    owner_id: "0000000000012"
+    ami_name: "default_base-ops-1486380934"
+
+  tasks:
+  - ec2_ami_find:
+      owner: "{{ owner_id }}"
+      region: "{{ region }}"
+      name: "{{ ami_name }}"
+    register: ami_find
+  - debug: var=ami_find.results
+
+  # - debug: msg="{{ item.ami_id }}"
+  #   with_items: "{{ ami_find.results }}"
+  # - debug: var=ami_id:"{{ ami_find.results.0.ami_id }}"
+  - shell: distami --region="{{ region }}" "{{ item.ami_id }}" --to "{{ src_dest }}" -p -v --non-public
+    with_items: "{{ ami_find.results }}"
+    register: shell
+  - debug: var=shell.stdout

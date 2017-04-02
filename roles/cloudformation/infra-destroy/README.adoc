@@ -1,0 +1,26 @@
+= Infrastructure
+
+Create or destroy the cloudformation stack for Infrastructure.
+
+Requirements
+------------
+
+1. boto is required for the cloudformation module.
+2. AWS credentials are required
+3. Cloudformation JSON file uploaded to S3 bucket that can be accessed via https.
+
+Role Variables
+--------------
+
+[horizontal]
+infra_stack_name:: The name of the Infrastructure stack. Defaults to "cgenix-app-Infrastructure".
+region:: The AWS region. Defaults to "us-west-2".
+
+Example
+-------
+ansible-playbook ~/infrastructure/playbooks/services/vpc/infra_destroy.yml \
+              --extra-vars "access_key=$AWS_ACCESS_KEY \
+                secret_key=$AWS_SECRET_KEY \
+                region=us-west-2 \
+                infra_stack_name=CC-Test-Infra \
+                template=https://s3-us-west-2.amazonaws.com/cginfrafiles/ProdVPCCloudformation.json"

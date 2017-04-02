@@ -1,0 +1,38 @@
+- name: Install python netaddr dependency
+  pip: name=netaddr
+- name: Make /var/log world-writable
+  file:
+    path: /var/log
+    mode: 770
+- name: Install s3cmd 1.6.1 using pip
+  pip:
+    name: s3cmd
+    version: 1.6.1
+- name: s3cfg file
+  copy: dest=/root/.s3cfg src=s3cfg
+- name: Add s3 sync script
+  template:
+    dest: /usr/local/bin/s3_sync.sh
+    src: s3_sync.sh
+    mode: 757
+- name: Add s3 sync command to daily cron
+  copy:
+    dest: /etc/cron.daily/s3_sync
+    src: cron.daily
+    mode: 757
+- name: Add s3 sync command to init.d
+  copy:
+    dest: /etc/init.d/s3_sync
+    mode: 644
+    owner: root
+    group: root
+    src: s3_sync.init.d
+- name: Configure update-rc to run s3_sync on shutdown
+  shell: update-rc.d s3_sync start 19 0 6 .
+- name: Add s3 sync command to cron for reboot
+  copy:
+    dest: /etc/cron.d/s3_sync_startup
+    mode: 446
+    owner: root
+    group: root
+    src: s3_reboot

@@ -1,0 +1,166 @@
+AWS-Demo
+========
+Christopher Welle <cjwelle@gmail.com>
+1.8, 2017-02-06
+
+This repo is an example of using Ansible to launch AWS Cloudformation templates to build VPC's and Packer to Build AMI's along with cleaning up of the VPC after done.
+
+Kitchen Server
+--------------
+The kitchen server for this repo used  https://www.vagrantup.com/[Vagrant] with https://github.com/dotless-de/vagrant-vbguest[Vagrant-vbguest plugin] and  https://www.virtualbox.org/[Virtual Box] installed on the host machine.
+
+Start up Kitchen Server
+~~~~~~~~~~~~~~~~~~~~~~~
+----
+vagrant up
+----
+NOTE: This could take up to 30 mins to start. This will launch a vagrant box and run the kitchen.yml file against the vagrant box.
+
+Log into the Vagrant box
+~~~~~~~~~~~~~~~~~~~~~~~~
+----
+vagrant ssh
+----
+
+Verify that your AWS credentials are passed through.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----
+aws s3 ls
+----
+
+Change directory to workfolder before running the commands below.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----
+cd ~/workfolder
+----
+
+Virtual Private Cloud
+---------------------
+The VPC's are required 1st to build the AMI's in. This section will build two VPC's that are peered together. The template is found under files/cfs/Demo_2VPC_CFS.json. This file is uploaded to a S3 Bucket that is accessible via http url.
+
+Upload CFS File to S3 bucket and make it available via http
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This command uploads the CFS to a S3 bucket in your account. Change the s3:// address to a bucket in your account.
+----
+aws s3 cp files/cfs/Demo_2VPC_CFS.json s3://<your_s3_bucket> --grants read=uri=http://acs.amazonaws.com/groups/global/AllUsers
+----
+
+Build VPC
+~~~~~~~~~
+This command will use Ansible to launch the cloudformation template into AWS. You will need to adjust the URL to the region your S3 bucket is in and the name of the s3 bucket. You can test the URL out by entering the address in a Web Browser.
+
+While this command runs, you can view the status in the AWS Console, under Cloudformation, Select the stack that is CREATE_IN_PROGRESS and click on Events tab n the bottom window.
+----
+time ansible-playbook services/vpc/infra_create.yml \
+  --extra-vars "region=us-west-2 \
+                infra_stack_name=Demo-Test-Infra \
+                template=https://s3-<region_of_s3_bucket>.amazonaws.com/<your_s3_bucket>/Demo_2VPC_CFS.json"
+----
+.COMMAND OPTIONS
+[TIP]
+==============
+ region = AWS region the VPC that packer will build the AMI in. NOTE: The file needs to reference the AZ your account has access to in that region. Not all AWS accounts have access to the same AZ's.
+
+ infra_stack_name = The Name of the cloudformation stack to launch. Going forward this name will be used to reference when to pull Outputs from the cloudformation stack when launching services or building AMI's.
+
+ template = URL to the cloudformation template files. This needs to be a S3 bucket URL as many of the cloudformation templates over a character size will not be able to be referenced via file.
+==============
+
+.Estimated time to run
+[NOTE]
+===============
+ real 1m33.651s
+ user 0m2.323s
+ sys 0m17.266s
+===============
+
+Create Base AMI
+---------------
+Base AMI, is the common base OS image that all services are built off of. Any security, common user, or common package that is used throughout the cloud stack, is managed and applied during this process. (e.g. This AMI is use to build other services, launch Jumpboxes, or any other EC2 instances.)
+
+TIP: Change the ami to the ubuntu 14.04 HVM version for your region.
+TIP: Change the s3_log_bucket variable to a S3 bucket that you wish your syslogs to go to.
+
+----
+time ansible-playbook services/default_base/build_base_ami.yml \
+  --extra-vars "region=us-west-2 \
+                source_ami=ami-5e63d13e \
+                s3_log_bucket=cc-syslogs \
+                infra_stack_name=Demo-Test-Infra"
+----
+.COMMAND OPTIONS
+[TIP]
+==============
+ region = AWS region the VPC that packer will build the AMI in.
+
+ source_ami = AMI that is already created in AWS. e.g. Ubuntu 14.04 HVM created AMI from Canonical.
+
+ s3_log_bucket = The S3 bucket to ship all logs from /var/logs to.
+
+ infra_stack_name = The Name of the cloudformation stack to launch. Going forward this name will be used to reference when to pull Outputs from the cloudformation stack when launching services or building AMI's.
+==============
+
+.Estimated time to run
+[NOTE]
+===============
+ real 13m29.292s
+ user 0m13.888s
+ sys 2m33.339s
+===============
+
+Copy AMI's to other regions
+---------------------------
+This command will copy the AMI to different Regions. Change the command options to match the AMI you wish to copy.
+
+----
+time ansible-playbook services/rep_ami/rep-ami.yml \
+             --extra-vars "region=us-west-2 \
+               owner_id=0000000000012 \
+               ami_name=default_base-ops-1486380934 \
+               src_dest=us-west-1,us-east-1,us-east-2"
+----
+.COMMAND OPTIONS
+[TIP]
+==============
+ region = AWS region that the AMI is currently located in.
+
+ owner_id = AWS Account number that the AMI is owned by.
+
+ ami_name = AMI Name. NOTE: Not the AMI Tag name, the ami name.
+
+ src_dest = list of AWS regions to copy the AMI to.
+
+==============
+
+.Estimated time to run
+[NOTE]
+===============
+ Varies based on number of regions set in the src_dest.
+===============
+
+Destroy VPC
+-----------
+Cleans up the VPC build. If there are any servers running inside the VPC or anything changed manually to the VPC's or networking that relate to the VPC's, this will fail until those items are cleaned up or removed. You will need to adjust the URL to the region your S3 bucket is in and the name of the s3 bucket. You can test the URL out by entering the address in a Web Browser.
+----
+time ansible-playbook services/vpc/infra_destroy.yml \
+              --extra-vars "region=us-west-2 \
+                infra_stack_name=Demo-Test-Infra \
+                template=https://s3-<region_of_s3_bucket>.amazonaws.com/<your_s3_bucket>/Demo_2VPC_CFS.json"
+----
+.COMMAND OPTIONS
+[TIP]
+==============
+ region = AWS region the VPC that packer will build the AMI in.
+
+ infra_stack_name = The Name of the cloudformation stack to destroy.
+
+ template = URL to the cloudformation template files. This needs to be a S3 bucket URL as many of the cloudformation templates over a character size will not be able to be referenced via file.
+==============
+
+.Estimated time to run
+[NOTE]
+===============
+ real	2m46.601s
+ user	0m35.046s
+ sys	0m5.547s
+===============

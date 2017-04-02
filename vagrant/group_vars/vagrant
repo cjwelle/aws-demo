@@ -1,0 +1,6 @@
+group_name: vagrant
+ansible_ssh_user: vagrant
+
+# AWS keys for Vagrant are read from the Vagrant host and passed to the VM
+aws_access_key: "{{ lookup('env','AWS_ACCESS_KEY_ID') }}"
+aws_secret_key: "{{ lookup('env','AWS_SECRET_ACCESS_KEY') }}"

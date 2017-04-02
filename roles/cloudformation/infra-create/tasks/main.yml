@@ -1,0 +1,12 @@
+---
+- name: Create Infrastructure Stack
+  # A bug in the cloudformation module prevents it from reading files
+  # from files/ in the role, so we have to hard code a relative path
+  # from the playbook App to the template.
+  cloudformation: >
+    stack_name={{ infra_stack_name }}
+    state=present
+    region="{{ region }}"
+    disable_rollback=false
+    template_url={{ template }}
+  register: infrastructure

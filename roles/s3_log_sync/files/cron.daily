@@ -1,0 +1,3 @@
+#!/bin/sh
+
+/usr/local/bin/s3_sync.sh >> /var/log/s3_sync.log 2>&1

@@ -1,0 +1,10 @@
+---
+- name: Destroy Infrastructure Stack
+  # A bug in the cloudformation module prevents it from reading files
+  # from files/ in the role, so we have to hard code a relative path
+  # from the playbook App to the template.
+  cloudformation: >
+    stack_name={{ infra_stack_name }}
+    state=absent
+    region="{{region}}"
+    template_url="{{template}}"

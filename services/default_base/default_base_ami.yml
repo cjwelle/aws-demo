@@ -1,0 +1,13 @@
+---
+- name: Default base
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  become: true
+  vars:
+    s3_log_bucket: cc-syslogs
+  roles:
+    - common
+    - s3_log_sync
+    - supervisord
+    - cleanup

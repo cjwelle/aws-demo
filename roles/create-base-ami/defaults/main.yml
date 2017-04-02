@@ -1,0 +1,10 @@
+---
+# defaults file for base_ami
+region:     "{{user `region`}}"
+wrk_home:   "{{ lookup('env','wrk_home') }}"
+access_key: "{{user `aws_access_key`}}"
+secret_key: "{{user `aws_secret_key`}}"
+instance_type: "m3.medium"
+source_ami: "{{user `source_ami`}}"
+subnet_id:  "{{ lookup('cf_output', region + '/' + infra_stack_name + '/output/' + 'DOPubSubnetid1') }}"
+vpc_id:     "{{ lookup('cf_output', region + '/' + infra_stack_name + '/output/' + 'dovpcid') }}"
