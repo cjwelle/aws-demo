@@ -1,0 +1,7 @@
+$ cat .gitignore
+# exclude everything except directory foo/bar
+*.log
+.vagrant
+.vagrant/*
+*.pyc
+*.retry
