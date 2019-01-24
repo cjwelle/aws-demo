@@ -1,0 +1,218 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "CJW AWS Demo Cloudformation Infrastructure. BastionHost & Internal Route 53  Clouformation Template 0.4",
+
+  "Parameters": {
+    "CFSS3Bucket": {
+      "Description": "What S3Bucket is the Cloudformation templates stored at?",
+      "Default": "http://s3-us-west-2.amazonaws.com/ia-infra/cf_templates/",
+      "Type": "String"
+    }
+  },
+
+  "Mappings" : {
+    "VPCCFS" : {
+      "VPCType"             : { "Name" : "Variable_VPC_4sbnt_1NAT.template"},
+      "VPCTypeNAME"         : { "vpcshortname" : "demo-aws"},
+      "IntR53"              : { "Name" : "Variable_Internal_R53.template"}
+    },
+
+    "Tagging" : {
+      "CostCenter"          : { "Name" : "demo-it01"},
+      "Theater"             : { "Name" : "demo-it01-usw2"}
+    },
+
+    "OfficeNetworks" : {
+      "Office"            : { "CIDR" : "10.23.0.0/23" },
+      "CompanyDomain"            : { "Name" : "cjwsolutions.net" },
+      "OfficePubCorp"     : { "CIDR": "108.217.235.114/29"}
+    },
+
+    "VPCInfo" : {
+      "keypair"             : { "kp1"  : "ops-demo-xyz"},
+      "instancesize"        : { "size" : "t2.small"},
+
+      "AZ1"                 : { "AZ" : "a" },
+      "AZ2"                 : { "AZ" : "b" },
+
+      "VPC"                 : { "CIDR" : "10.20.0.0/23" },
+      "PubSubnet1"         : { "CIDR" : "10.20.0.0/25" },
+      "PubSubnet2"         : { "CIDR" : "10.20.0.128/25"},
+      "PrivSubnet1"         : { "CIDR" : "10.20.1.0/25" },
+      "PrivSubnet2"         : { "CIDR" : "10.20.1.128/25"}
+    },
+
+    "RegionShortName" : {
+      "us-east-1"           : { "Name" : "use1" },
+      "us-east-2"           : { "Name" : "use2" },
+      "us-west-1"           : { "Name" : "usw1" },
+      "us-west-2"           : { "Name" : "usw2" },
+      "ca-central-1"        : { "Name" : "cac1" },
+      "eu-west-1"           : { "Name" : "euw1" },
+      "eu-west-2"           : { "Name" : "euw2" },
+      "ap-south-1"          : { "Name" : "aps1" },
+      "ap-southeast-1"      : { "Name" : "aps1" },
+      "ap-southeast-2"      : { "Name" : "aps2" },
+      "ap-northeast-1"      : { "Name" : "apn1" },
+      "ap-northeast-2"      : { "Name" : "apn2" },
+      "sa-east-1"           : { "Name" : "sae1" },
+      "eu-central-1"        : { "Name" : "euc1" }
+    },
+
+    "AWSBASEAMI" : {
+      "us-east-1"           : { "AMI" : "ami-4dd2575b" },
+      "us-east-2"           : { "AMI" : "ami-38f5d15d" },
+      "us-west-1"           : { "AMI" : "ami-e6095386" },
+      "us-west-2"           : { "AMI" : "ami-fa27b39a" },
+      "eu-west-1"           : { "AMI" : "ami-c0cff0a6" },
+      "eu-west-2"           : { "AMI" : "ami-38f5d15d" },
+      "eu-central-1"        : { "AMI" : "ami-e9c01086" },
+      "ap-south-1"          : { "AMI" : "ami-6c681b03" },
+      "ap-southeast-1"      : { "AMI" : "ami-dd07bbbe" },
+      "ap-southeast-2"      : { "AMI" : "ami-c3dfd0a0" },
+      "ap-northeast-1"      : { "AMI" : "ami-53624634" },
+      "ap-northeast-2"      : { "AMI" : "ami-8a7face4" },
+      "sa-east-1"           : { "AMI" : "ami-c21370ae" },
+      "ca-central-1"        : { "AMI" : "ami-af0fb2cb" }
+    }
+  },
+
+  "Resources" : {
+    "S3Bucket" : {
+      "Type" : "AWS::S3::Bucket",
+      "Properties" : {
+        "AccessControl" : "Private",
+        "BucketName" : {"Fn::Sub": "${AWS::StackName}"}
+      }
+    },
+
+    "vpc": {
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": { "Fn::Join" : ["", [{ "Ref" : "CFSS3Bucket" }, { "Fn::FindInMap" : [ "VPCCFS", "VPCType", "Name" ]} ]]},
+        "TimeoutInMinutes": "30",
+        "Parameters": {
+          "vpcshortname" : { "Fn::FindInMap" : ["VPCCFS", "VPCTypeNAME", "vpcshortname" ]},
+          "costcentertagging" : { "Fn::FindInMap" : [ "Tagging", "CostCenter", "Name" ]},
+          "theatertagging" : { "Fn::FindInMap" : [ "Tagging", "Theater", "Name" ]},
+          "officenetwork1" :  { "Fn::FindInMap" : [ "OfficeNetworks", "Office", "CIDR" ]} ,
+          "keypair" :  { "Fn::FindInMap" : [ "VPCInfo", "keypair", "kp1" ]} ,
+          "instancesize" :  { "Fn::FindInMap" : [ "VPCInfo", "instancesize", "size" ]} ,
+          "awsaz1" :  { "Fn::FindInMap" : [ "VPCInfo", "AZ1", "AZ" ]} ,
+          "awsaz2" :  { "Fn::FindInMap" : [ "VPCInfo", "AZ2", "AZ" ]} ,
+          "vpccidr" :   { "Fn::FindInMap" : [ "VPCInfo", "VPC", "CIDR" ]},
+          "pubsubnetid1cidr" :   { "Fn::FindInMap" : [ "VPCInfo", "PubSubnet1", "CIDR" ]},
+          "pubsubnetid2cidr" :   { "Fn::FindInMap" : [ "VPCInfo", "PubSubnet2", "CIDR" ]},
+          "privsubnetid1cidr" :   { "Fn::FindInMap" : [ "VPCInfo", "PrivSubnet1", "CIDR" ]},
+          "privsubnetid2cidr" :   { "Fn::FindInMap" : [ "VPCInfo", "PrivSubnet2", "CIDR" ]},
+          "regionshortname" :  { "Fn::FindInMap" : [ "RegionShortName", { "Ref" : "AWS::Region" }, "Name" ] },
+          "awsbaseami" :  { "Fn::FindInMap" : [ "AWSBASEAMI", { "Ref" : "AWS::Region" }, "AMI" ] },
+          "s3bucketname" :  {"Ref" : "S3Bucket"},
+          "s3bucketarn" :  {"Fn::GetAtt" : ["S3Bucket", "Arn"] },
+          "s3bucketdomainname" :  {"Fn::GetAtt" : ["S3Bucket", "DomainName"] },
+          "DeployBastion" : "No",
+          "corpip1" : { "Fn::FindInMap" : [ "OfficeNetworks", "OfficePubCorp", "CIDR" ]}
+        }
+      }
+    },
+
+    "introute53": {
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": { "Fn::Join" : ["", [{ "Ref" : "CFSS3Bucket" }, { "Fn::FindInMap" : [ "VPCCFS", "IntR53", "Name" ]} ]]},
+        "TimeoutInMinutes": "10",
+        "Parameters": {
+            "vpcid": { "Fn::GetAtt": ["vpc", "Outputs.VPCid"] },
+            "costcentertagging" : { "Fn::FindInMap" : [ "Tagging", "CostCenter", "Name" ]},
+            "theatertagging" : { "Fn::FindInMap" : [ "Tagging", "Theater", "Name" ]},
+            "intdomainname" :  { "Fn::FindInMap" : [ "OfficeNetworks", "CompanyDomain", "Name" ]} ,
+            "regionshortname" :  { "Fn::FindInMap" : [ "RegionShortName", { "Ref" : "AWS::Region" }, "Name" ] }
+        }
+      }
+    }
+  },
+
+  "Outputs" : {
+    "CostCenterTagging" : {
+      "Description" : "Cost Center",
+      "Value" :  { "Fn::FindInMap" : [ "Tagging", "CostCenter", "Name" ]},
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-costcentertagging"}}
+    },
+    "TheaterTagging" : {
+      "Description" : "What theater is this part of?",
+      "Value" :  { "Fn::FindInMap" : [ "Tagging", "Theater", "Name" ]},
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-theatertagging"}}
+    },
+    "OfficeNetwork1" : {
+      "Value" : { "Fn::FindInMap" : [ "OfficeNetworks", "Office", "CIDR"]} ,
+      "Description" : "Office Network 1 for Security Group",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-officenetwork1"}}
+    },
+    "keypair" : {
+      "Value" : { "Fn::FindInMap" : [ "VPCInfo", "keypair", "kp1" ]} ,
+      "Description" : "Keypair Name",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-keypair"}}
+    },
+    "InstanceSize" : {
+      "Value" : { "Fn::FindInMap" : [ "VPCInfo", "instancesize", "size" ]} ,
+      "Description" : "Instance Size for JumpHost",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-instancesize"}}
+    },
+    "awsaz1" : {
+      "Value" : { "Fn::FindInMap" : [ "VPCInfo", "AZ1", "AZ" ]} ,
+      "Description" : "Availability Zone AZ1",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-awsaz1"}}
+    },
+    "awsaz2" : {
+      "Value" : { "Fn::FindInMap" : [ "VPCInfo", "AZ2", "AZ" ]} ,
+      "Description" : "Availability Zone AZ2",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-awsaz2"}}
+    },
+    "VPCCIDR" : {
+      "Description" : "CIDR of the Public subnet1 az1",
+      "Value" :  { "Fn::FindInMap" : [ "VPCInfo", "VPC", "CIDR" ]},
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-vpccidr"}}
+    },
+    "PrivSubnetid1CIDR" : {
+      "Description" : "CIDR of the Private subnet1 az1",
+      "Value" :  { "Fn::FindInMap" : [ "VPCInfo", "PrivSubnet1", "CIDR" ]},
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-privsubnetid1cidr"}}
+    },
+    "PrivSubnetid2CIDR" : {
+      "Description" : "CIDR of the Private subnet2 az2",
+      "Value" :  { "Fn::FindInMap" : [ "VPCInfo", "PrivSubnet2", "CIDR" ]},
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-privsubnetid2cidr"}}
+    },
+    "RegionShortName" : {
+      "Value" : { "Fn::FindInMap" : [ "RegionShortName", { "Ref" : "AWS::Region" }, "Name" ] },
+      "Description" : "Shortname for the current Region",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-regionshortname"}}
+    },
+    "AWSBaseAMI" : {
+      "Value" : { "Fn::FindInMap" : [ "AWSBASEAMI", { "Ref" : "AWS::Region" }, "AMI" ] },
+      "Description" : "Base AMI for the current Region",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-awsbaseami"}}
+    },
+    "S3BucketName" : {
+      "Value" : {"Ref" : "S3Bucket"},
+      "Description" : "S3 Bucket Name",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-s3bucketname"}}
+    },
+    "S3BucketARN" : {
+      "Value" : {"Fn::GetAtt" : ["S3Bucket", "Arn"] },
+      "Description" : "S3 Bucket ARN",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-s3bucketarn"}}
+    },
+    "S3BucketDomainName" : {
+      "Value" : {"Fn::GetAtt" : ["S3Bucket", "DomainName"] },
+      "Description" : "S3 Bucket Domain Name",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-s3bucketdomainname"}}
+    },
+    "VPCStackName" : {
+      "Value" :  { "Ref": "vpc" },
+      "Description" : "VPC Cloudformation Stack Name",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-vpcstackname"}}
+    }
+  }
+}

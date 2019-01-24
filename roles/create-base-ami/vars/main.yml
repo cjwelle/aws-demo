@@ -1,3 +1,3 @@
 ---
-source_amis: '{{ ((lookup("pipe", "aws --region=" + region + " ec2 describe-images --output json --filters Name=owner-id,Values=099720109477 Name=name,Values=ubuntu/images-testing/hvm-ssd/ubuntu-trusty-daily-amd64-server-20160210)) | from_json)["Images"] }}'
+source_amis: '{{ ((lookup("pipe", "aws --region=" + region + " ec2 describe-images --output json --filters Name=owner-id,Values=099720109477 Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-xenial-16.04-amd64-server-20170619.1)) | from_json)["Images"] }}'
 keypairs: '{{ ((lookup("pipe", "aws --region=" + region + " ec2 describe-key-pairs --output json --filters Name=key-name,Values=" + keypair)) | from_json)["KeyPairs"]  }}'

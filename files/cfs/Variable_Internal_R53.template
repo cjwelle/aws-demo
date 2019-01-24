@@ -1,0 +1,92 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "CJW AWS Demo Cloudformation Infrastructure. Internal Route53 Domain Cloudformation Version 0.10",
+
+  "Parameters" : {
+    "costcentertagging" : {
+      "Type"				             : "String",
+      "Default"			             : "Test",
+      "Description"              : "Cost Center Tag Name"
+    },
+    "theatertagging" : {
+      "Type"				             : "String",
+      "Default"			             : "Test",
+      "Description"              : "Theater Tag Name"
+    },
+    "regionshortname" :  {
+      "Type"				             : "String",
+      "Default"			             : "usw2",
+      "Description"              : "Shortname for the current Region"
+    },
+    "vpcid" : {
+      "Type"                     : "String",
+      "Default"                  : "vpc-23423444",
+      "Description"              : "VPC ID"
+    },
+    "intdomainname" :  {
+      "Type"				             : "String",
+      "Default"			             : "Name",
+      "Description"              : "Internatl Network Domain Name"
+    }
+  },
+
+  "Resources" : {
+    "IntHostedZone": {
+      "Type": "AWS::Route53::HostedZone",
+      "Properties": {
+        "HostedZoneConfig": {
+          "Comment": "Internal domain created by CloudFormation"
+        },
+        "HostedZoneTags": [
+          { "Key" : "Name", "Value" :  { "Fn::Join" : ["", ["aws.",{"Ref": "intdomainname"}, " internal domain for VPC." ]] }}],
+        "Name" : { "Fn::Join" : ["", ["aws.",{"Ref": "intdomainname"} ]]},
+        "VPCs" : [ {
+          "VPCId": { "Ref": "vpcid"},
+          "VPCRegion": { "Ref" : "AWS::Region" }
+          }
+        ]
+      }
+    },
+
+    "DHCPOptions": {
+      "Type" : "AWS::EC2::DHCPOptions",
+      "Properties" : {
+        "DomainName" : { "Fn::Join" : ["", ["aws.",{"Ref": "intdomainname"} ]]},
+        "Tags" : [
+          { "Key" : "Name", "Value"     : { "Fn::Join" : ["", [{ "Ref": "regionshortname" }, "-dhcp"]]}},
+          { "Key": "Acct", "Value": { "Ref" : "AWS::AccountId" } },
+          { "Key" : "Theater", "Value" :  { "Ref": "theatertagging" }},
+          { "Key" : "CostCenter", "Value" :  { "Ref": "costcentertagging" }}
+        ]
+     }
+   },
+
+    "DHCPAssociate": {
+      "Type" : "AWS::EC2::VPCDHCPOptionsAssociation",
+      "Properties" : {
+        "DhcpOptionsId" : {"Ref": "DHCPOptions"},
+        "VpcId" : { "Ref": "vpcid"}
+      }
+    }
+  },
+
+
+  "Outputs" : {
+    "IntHostedZoneID" : {
+      "Value" : { "Ref" : "IntHostedZone"} ,
+      "Description" : "HostedZoneID for internal Domain",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-inthostedzoneid"}}
+    },
+    "IntHostedZoneURL" : {
+      "Value" : { "Fn::Join" : ["", ["aws.",{"Ref": "intdomainname"} ]]} ,
+      "Description" : "HostedZoneURL for internal Domain",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-inthostedzoneurl"}}
+    },
+    "CFSStackName" : {
+      "Value" : {"Ref" : "AWS::StackName"},
+      "Description" : "VPC Cloudformation Stack Name",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-cfsstackname"}}
+    }
+  }
+}

@@ -1,0 +1,795 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "CJW AWS Demo Cloudformation Infrastructure. 1 NAT, 2 Public Subnets, 2 Private Subnets, RDS Subnet, Cache Subnet; VPC Cloudformation Version 0.10",
+
+  "Parameters" : {
+    "vpcshortname" : {
+      "Type"				             : "String",
+    	"Default"			             : "test",
+    	"Description"              : "VPC Short Name"
+    },
+    "costcentertagging" : {
+      "Type"				             : "String",
+    	"Default"			             : "Test",
+    	"Description"              : "Cost Center Tag Name"
+    },
+    "theatertagging" : {
+      "Type"				             : "String",
+      "Default"			             : "Test",
+      "Description"              : "Theater Tag Name"
+    },
+    "corpip1" : {
+      "Type"				             : "String",
+    	"Default"			             : "74.95.202.237/32",
+    	"Description"			         : "1st Public IP Subnet for Corporate Office.",
+    	"AllowedPattern"		       : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+    	"ConstraintDescription"    : "CIDR block must be in IP format: x.x.x.x/x."
+    },
+    "officenetwork1" :  {
+      "Type"				             : "String",
+    	"Default"			             : "10.149.0.0/24",
+    	"Description"			         : "Private IP Subnet for Corporate SF Office.",
+    	"AllowedPattern"		       : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+    	"ConstraintDescription"    : "CIDR block must be in IP format: x.x.x.x/x."
+    },
+    "keypair" :  {
+      "Type"				             : "String",
+    	"Default"			             : "Test",
+    	"Description"              : "Keypair for instances launched with this CFS."
+    },
+    "instancesize" :  {
+      "Type"				             : "String",
+    	"Default"			             : "t2.small",
+    	"Description"              : "Instance type for instances launched with this CFS."
+    } ,
+    "awsaz1" :  {
+      "Type"				             : "String",
+      "Default"			             : "a",
+      "Description"              : "AZ1"
+    },
+    "awsaz2" :  {
+      "Type"				             : "String",
+      "Default"			             : "a",
+      "Description"              : "AZ2"
+    },
+    "vpccidr" :   {
+      "Type"				             : "String",
+    	"Default"                  : "10.129.0.0/24",
+    	"Description"              : "The main VPC CIDR block",
+    	"AllowedPattern"           : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+    	"ConstraintDescription"    : "CIDR block must be in IP format: x.x.x.x/x."
+    },
+    "pubsubnetid1cidr" :   {
+      "Type"				             : "String",
+    	"Default"			             : "10.129.0.0/24",
+    	"Description"			         : "Public IP Subnet for Corporate VPC.",
+    	"AllowedPattern"		       : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+    	"ConstraintDescription"    : "CIDR block must be in IP format: x.x.x.x/x."
+    },
+    "pubsubnetid2cidr" :   {
+      "Type"				             : "String",
+    	"Default"			             : "10.129.0.0/24",
+    	"Description"			         : "Public IP Subnet for Corporate VPC.",
+    	"AllowedPattern"		       : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+    	"ConstraintDescription"    : "CIDR block must be in IP format: x.x.x.x/x."
+    },
+    "privsubnetid1cidr" :   {   "Type"				             : "String",
+    	"Default"			             : "10.129.0.0/24",
+    	"Description"			         : "Private IP Subnet for Corporate VPC.",
+    	"AllowedPattern"		       : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+    	"ConstraintDescription"    : "CIDR block must be in IP format: x.x.x.x/x."
+    },
+    "privsubnetid2cidr" :   {   "Type"				             : "String",
+    	"Default"			             : "10.129.0.0/24",
+    	"Description"			         : "Private IP Subnet for Corporate VPC.",
+    	"AllowedPattern"		       : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+    	"ConstraintDescription"    : "CIDR block must be in IP format: x.x.x.x/x."
+    },
+    "regionshortname" :  {
+      "Type"				             : "String",
+    	"Default"			             : "usw2",
+    	"Description"              : "Shortname for the current Region"
+    },
+    "awsbaseami" :  {
+      "Type"				             : "String",
+    	"Default"			             : "ami-2231222",
+    	"Description"              : "Base AMI for the current Region"
+    },
+    "s3bucketname" :  {
+      "Type"				             : "String",
+    	"Default"			             : "Name",
+    	"Description"              : "S3 Bucket Name"
+    },
+    "s3bucketarn" :  {
+      "Type"				             : "String",
+    	"Default"			             : "Name",
+    	"Description"              : "S3 Bucket ARN"
+    },
+    "s3bucketdomainname" :  {
+      "Type"				             : "String",
+    	"Default"			             : "Name",
+    	"Description"              : "S3 Bucket Domain Name"
+    },
+    "DeployBastion": {
+      "Description"              : "Should a bastion server be deployed?",
+      "Default"                  : "No",
+      "Type"                     : "String",
+      "AllowedValues"            : ["No", "Yes"]
+    }
+  },
+
+  "Conditions" : {
+    "DeployBastion" : {
+      "Fn::Equals" : [ { "Ref" : "DeployBastion" }, "Yes" ]
+    }
+  },
+
+  "Resources" : {
+    "DefaultEC2InstanceRole": {
+      "Type": "AWS::IAM::Role",
+      "Condition" : "DeployBastion",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [ {
+            "Effect": "Allow",
+            "Principal": { "Service": [ "ec2.amazonaws.com" ] },
+            "Action": [ "sts:AssumeRole" ]
+            } ]
+          },
+          "Path": "/",
+          "Policies": [
+            {
+              "PolicyName": "EC2-TAG-MNGMT",
+              "PolicyDocument": { "Statement": [ {
+                "Effect": "Allow",
+                "Action": [
+                  "ec2:CreateTags",
+                  "ec2:DeleteTags",
+                  "ec2:Describe*"
+                ],
+                "Resource": "*" }
+                ] }
+              },
+              {
+                "PolicyName": "Default-base-ami",
+                "PolicyDocument": { "Statement": [ {
+                 "Effect": "Allow",
+                 "Action": "ec2:Describe*",
+                 "Resource": "*"
+               },
+               {
+                 "Effect": "Allow",
+                 "Action": "elasticloadbalancing:Describe*",
+                 "Resource": "*"
+               },
+               {
+                 "Effect": "Allow",
+                 "Action": [
+                   "cloudwatch:ListMetrics",
+                   "cloudwatch:GetMetricStatistics",
+                   "cloudwatch:Describe*"
+                 ],
+                 "Resource": "*"
+               },
+               {
+                 "Effect": "Allow",
+                 "Action": "autoscaling:Describe*",
+                 "Resource": "*"
+               }
+               ] }
+             },
+             {
+               "PolicyName": "R53-Policy",
+               "PolicyDocument": { "Statement": [ {
+                 "Effect": "Allow",
+                 "Action": "route53:*",
+                 "Resource": "*"
+               }
+               ] }
+             }
+              ] }
+      },
+
+    "DefaultEC2InstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Condition" : "DeployBastion",
+      "Properties": {
+        "Path": "/",
+        "Roles": [ { "Ref": "DefaultEC2InstanceRole" } ]
+        }
+      },
+
+    "VPC" : {
+      "Type" : "AWS::EC2::VPC",
+      "Properties" : {
+        "CidrBlock"           : { "Ref" : "vpccidr" },
+        "EnableDnsSupport"    : "true",
+        "EnableDnsHostnames"  : "true",
+        "Tags" : [
+          { "Key"   : "Name", "Value"   : { "Fn::Join" : ["", [{ "Ref" : "vpcshortname" } , "-VPC" ]]} },
+          { "Key"   : "Network", "Value" : "Public" },
+          { "Key"   : "Application", "Value" : { "Ref" : "AWS::StackId" }},
+          { "Key"   : "Stack", "Value"  : { "Ref" : "theatertagging" }},
+          { "Key"   : "Acct", "Value"   : { "Ref" : "AWS::AccountId" }},
+          { "Key" : "Theater", "Value" :  { "Ref" : "theatertagging"}},
+          { "Key" : "CostCenter", "Value" :  { "Ref" : "costcentertagging"}}
+        ]
+      }
+    },
+
+    "SGDefault": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "default VPC security group",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "-1",
+            "FromPort": "-1",
+            "CidrIp": { "Ref" : "vpccidr"}
+          },
+          {
+          "IpProtocol": "-1",
+          "FromPort" : "-1",
+          "CidrIp": { "Ref" : "officenetwork1"}
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+          "IpProtocol"  : "-1",
+          "CidrIp"      : "0.0.0.0/0"
+          }
+        ],
+        "Tags": [
+          { "Key" : "Name", "Value": { "Fn::Join" : ["", [{ "Ref" : "vpcshortname"}, "-default-sg"]]} },
+          { "Key" : "Stack", "Value"  : { "Ref" : "vpcshortname"}  },
+          { "Key" : "Acct", "Value": { "Ref" : "AWS::AccountId" } },
+          { "Key" : "Application", "Value": { "Ref" : "AWS::StackId"} },
+          { "Key" : "Theater", "Value" :  { "Ref" : "theatertagging"}  },
+          { "Key" : "CostCenter", "Value" :  { "Ref" : "costcentertagging"}  }
+        ]
+      }
+    },
+
+    "CorpSG": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "CrankyClouds Public IP from Corporate IPs; SSH Allow",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": { "Ref" : "corpip1"}
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+          "IpProtocol": "-1",
+          "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "Tags": [
+          { "Key": "Name", "Value": { "Fn::Join" : ["", [{ "Ref" : "vpcshortname" }, "-corp-ssh-sg"]]} },
+          { "Key"   : "Stack", "Value": { "Ref" : "vpcshortname"}  },
+          { "Key": "Acct", "Value": { "Ref" : "AWS::AccountId" } },
+          { "Key": "Application", "Value": { "Ref" : "AWS::StackId"} },
+          { "Key" : "Theater", "Value" :  { "Ref" : "theatertagging"} },
+          { "Key" : "CostCenter", "Value" :  { "Ref" : "costcentertagging"} }
+        ]
+      }
+    },
+
+    "InternetGateway" : {
+      "Type" : "AWS::EC2::InternetGateway",
+      "Properties" : {
+        "Tags" : [
+          { "Key"   : "Name", "Value" : { "Fn::Join" : ["", [{ "Ref" : "vpcshortname"}, "-igw"]]}},
+          { "Key"   : "Stack", "Value": { "Ref" : "vpcshortname"} },
+          { "Key"   : "Acct", "Value": { "Ref" : "AWS::AccountId" } },
+          { "Key"   : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key"   : "Network", "Value" : "Public" },
+          { "Key" : "Theater", "Value" :  { "Ref" : "theatertagging"} },
+          { "Key" : "CostCenter", "Value" :  { "Ref" : "costcentertagging"} }
+        ]
+      }
+    },
+
+    "GatewayToInternet" : {
+       "Type"       : "AWS::EC2::VPCGatewayAttachment",
+       "Properties" : {
+         "VpcId"              : { "Ref" : "VPC" },
+         "InternetGatewayId"  : { "Ref" : "InternetGateway" }
+       }
+    },
+
+    "PublicRouteTable" : {
+      "Type"        : "AWS::EC2::RouteTable",
+      "Properties"  : {
+        "VpcId" : { "Ref" : "VPC" },
+        "Tags"  : [
+          { "Key" : "Name", "Value"     : { "Fn::Join" : ["", [{ "Ref" : "vpcshortname"}, "-pub-rtb"]]}},
+          { "Key"  : "Stack", "Value"    : { "Ref" : "vpcshortname"} },
+          { "Key" : "Acct", "Value"     : { "Ref" : "AWS::AccountId" } },
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value"  : "Public" },
+          { "Key" : "Theater", "Value" :  { "Ref" : "theatertagging"} },
+          { "Key" : "CostCenter", "Value" :  { "Ref" : "costcentertagging"} }
+        ]
+      }
+    },
+
+    "S3Endpoint" : {
+        "Type"  :  "AWS::EC2::VPCEndpoint",
+        "Properties" : {
+          "PolicyDocument" : {"Version":"2012-10-17",
+              "Statement":[{
+                "Effect":"Allow",
+                "Principal": "*",
+                "Action": "*",
+                "Resource": "*"
+              }]
+          },
+          "RouteTableIds" : [ {"Ref" : "PublicRouteTable"}, {"Ref" : "PrivateRouteTableAZ1"}, {"Ref" : "PrivateRouteTableAZ2"} ],
+          "ServiceName" : { "Fn::Join": [ "", [ "com.amazonaws.", { "Ref": "AWS::Region" }, ".s3" ] ] },
+          "VpcId" : {"Ref" : "VPC"}
+            }
+      },
+
+    "DynamoDBEndpoint" : {
+        "Type"  :  "AWS::EC2::VPCEndpoint",
+        "Properties" : {
+          "PolicyDocument" : {"Version":"2012-10-17",
+              "Statement":[{
+                "Effect":"Allow",
+                "Principal": "*",
+                "Action": "*",
+                "Resource": "*"
+              }]
+          },
+          "RouteTableIds" : [ {"Ref" : "PublicRouteTable"}, {"Ref" : "PrivateRouteTableAZ1"}, {"Ref" : "PrivateRouteTableAZ2"} ],
+          "ServiceName" : { "Fn::Join": [ "", [ "com.amazonaws.", { "Ref": "AWS::Region" }, ".dynamodb" ] ] },
+          "VpcId" : {"Ref" : "VPC"}
+            }
+      },
+
+    "PublicRoute" : {
+      "Type"        : "AWS::EC2::Route",
+      "DependsOn"   : "GatewayToInternet",
+      "Properties"  : {
+        "RouteTableId"          : { "Ref" : "PublicRouteTable" },
+        "DestinationCidrBlock"  : "0.0.0.0/0",
+        "GatewayId"             : { "Ref" : "InternetGateway" }
+      }
+    },
+
+    "NATAZ1" : {
+      "DependsOn" : "PublicRouteTable",
+      "Type" : "AWS::EC2::NatGateway",
+      "Properties" : {
+        "AllocationId" : { "Fn::GetAtt" : ["NATAZ1EIP", "AllocationId"]},
+        "SubnetId" : { "Ref" : "PubSubnet1"}
+      }
+    },
+
+    "NATAZ1EIP" : {
+      "Type" : "AWS::EC2::EIP",
+      "Properties" : {
+        "Domain" : "vpc"
+      }
+    },
+
+    "PrivateRouteTableAZ1" : {
+      "Type"        : "AWS::EC2::RouteTable",
+      "Properties"  : {
+        "VpcId" : { "Ref" : "VPC" },
+        "Tags"  : [
+          { "Key" : "Name", "Value"     : { "Fn::Join" : ["", [{ "Ref" : "vpcshortname"}, "-priv1-rtb"]]}},
+         { "Key"  : "Stack", "Value"    : { "Ref" : "vpcshortname"} },
+          { "Key" : "Acct", "Value"     : { "Ref" : "AWS::AccountId" } },
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value"  : "Private" },
+          { "Key" : "Theater", "Value" :  { "Ref" : "theatertagging"} },
+          { "Key" : "CostCenter", "Value" :  { "Ref" : "costcentertagging"} }
+        ]
+      }
+    },
+
+    "PrivateRouteAZ1" : {
+        "Type"        : "AWS::EC2::Route",
+        "Properties"  : {
+          "RouteTableId"          : { "Ref" : "PrivateRouteTableAZ1" },
+          "DestinationCidrBlock"  : "0.0.0.0/0",
+          "NatGatewayId"             : { "Ref" : "NATAZ1" }        }
+      },
+
+    "PrivateRouteTableAZ2" : {
+      "Type"        : "AWS::EC2::RouteTable",
+      "Properties"  : {
+        "VpcId" : { "Ref" : "VPC" },
+        "Tags"  : [
+          { "Key" : "Name", "Value"     : { "Fn::Join" : ["", [{ "Ref" : "vpcshortname"}, "-priv2-rtb"]]}},
+         { "Key"  : "Stack", "Value"    : { "Ref" : "vpcshortname"} },
+          { "Key" : "Acct", "Value"     : { "Ref" : "AWS::AccountId" } },
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value"  : "Private" },
+          { "Key" : "Theater", "Value" :  { "Ref" : "theatertagging"} },
+                      { "Key" : "CostCenter", "Value" :  { "Ref" : "costcentertagging"} }
+        ]
+      }
+    },
+
+    "PrivateRouteAZ2" : {
+        "Type"        : "AWS::EC2::Route",
+        "Properties"  : {
+          "RouteTableId"          : { "Ref" : "PrivateRouteTableAZ2" },
+          "DestinationCidrBlock"  : "0.0.0.0/0",
+          "NatGatewayId"             : { "Ref" : "NATAZ1" }
+        }
+      },
+
+    "PubSubnet1" : {
+      "Type" : "AWS::EC2::Subnet",
+      "DependsOn" : "VPC",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : { "Fn::Join" : ["", [{ "Ref" : "AWS::Region"}, { "Ref" : "awsaz1"} ]]},
+        "CidrBlock" : { "Ref" : "pubsubnetid1cidr"},
+        "Tags" : [
+          { "Key" : "Name", "Value"     : { "Fn::Join" : ["", [{ "Ref" : "vpcshortname"}, "-pub-sub1"]]}},
+          { "Key"  : "Stack", "Value"    : { "Ref" : "vpcshortname"} },
+          { "Key": "Acct", "Value": { "Ref" : "AWS::AccountId" } },
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value" : "PubSubnet1" },
+          { "Key" : "Theater", "Value" :  { "Ref" : "theatertagging"} },
+          { "Key" : "CostCenter", "Value" :  { "Ref" : "costcentertagging"} }
+        ]
+      }
+    },
+
+    "PubSubnet2" : {
+      "Type" : "AWS::EC2::Subnet",
+      "DependsOn" : "VPC",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : { "Fn::Join" : ["", [{ "Ref" : "AWS::Region"}, { "Ref" : "awsaz2"} ]]},
+        "CidrBlock" : { "Ref" : "pubsubnetid2cidr"},
+        "Tags" : [
+          { "Key" : "Name", "Value"     : { "Fn::Join" : ["", [{ "Ref" : "vpcshortname"}, "-pub-sub2"]]}},
+          { "Key"  : "Stack", "Value"    : { "Ref" : "vpcshortname"} },
+          { "Key": "Acct", "Value": { "Ref" : "AWS::AccountId" } },
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value" : "PubSubnet2" },
+          { "Key" : "Theater", "Value" :  { "Ref" : "theatertagging"} },
+          { "Key" : "CostCenter", "Value" :  { "Ref" : "costcentertagging"} }
+        ]
+      }
+    },
+
+    "PrivSubnet1" : {
+      "Type" : "AWS::EC2::Subnet",
+      "DependsOn" : "VPC",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : { "Fn::Join" : ["", [{ "Ref" : "AWS::Region"}, { "Ref" : "awsaz1"} ]]},
+        "CidrBlock" : { "Ref" : "privsubnetid1cidr"},
+        "Tags" : [
+          { "Key" : "Name", "Value"     : { "Fn::Join" : ["", [{ "Ref" : "vpcshortname"}, "-priv-sub1"]]}},
+          { "Key"  : "Stack", "Value"    : { "Ref" : "vpcshortname"} },
+          { "Key": "Acct", "Value": { "Ref" : "AWS::AccountId" } },
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value" : "PrivSubnet1" },
+          { "Key" : "Theater", "Value" :  { "Ref" : "theatertagging"} },
+          { "Key" : "CostCenter", "Value" :  { "Ref" : "costcentertagging"} }
+        ]
+      }
+    },
+
+    "PrivSubnet2" : {
+      "Type" : "AWS::EC2::Subnet",
+      "DependsOn" : "VPC",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : { "Fn::Join" : ["", [{ "Ref" : "AWS::Region"}, { "Ref" : "awsaz2"}]]},
+        "CidrBlock" : { "Ref" : "privsubnetid2cidr"},
+        "Tags" : [
+          { "Key" : "Name", "Value"     : { "Fn::Join" : ["", [{ "Ref" : "vpcshortname"}, "-priv-sub2"]]}},
+          { "Key"  : "Stack", "Value"    : { "Ref" : "vpcshortname"} },
+          { "Key": "Acct", "Value": { "Ref" : "AWS::AccountId" } },
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value" : "PrivSubnet2" },
+          { "Key" : "Theater", "Value" :  { "Ref" : "theatertagging"} },
+          { "Key" : "CostCenter", "Value" :  { "Ref" : "costcentertagging"} }
+        ]
+      }
+    },
+
+    "PubSubnet1RouteTableAssociation" : {
+      "Type"        : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties"  : {
+        "SubnetId"      : { "Ref" : "PubSubnet1" },
+        "RouteTableId"  : { "Ref" : "PublicRouteTable" }
+      }
+    },
+
+    "PubSubnet2RouteTableAssociation" : {
+      "Type"        : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties"  : {
+        "SubnetId"      : { "Ref" : "PubSubnet2" },
+        "RouteTableId"  : { "Ref" : "PublicRouteTable" }
+      }
+    },
+
+    "PrivSubnet1RouteTableAssociation" : {
+      "Type"        : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties"  : {
+        "SubnetId"      : { "Ref" : "PrivSubnet1" },
+        "RouteTableId"  : { "Ref" : "PrivateRouteTableAZ1" }
+      }
+    },
+
+    "PrivSubnet2RouteTableAssociation" : {
+      "Type"        : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties"  : {
+        "SubnetId"      : { "Ref" : "PrivSubnet2" },
+        "RouteTableId"  : { "Ref" : "PrivateRouteTableAZ2" }
+      }
+    },
+
+    "DBSubnetGroup" : {
+      "Type" : "AWS::RDS::DBSubnetGroup",
+      "Properties" : {
+        "DBSubnetGroupDescription" : { "Fn::Join" : ["", [{ "Ref" : "vpcshortname"}, " RDS Subnet"]]},
+        "SubnetIds" : [
+          { "Ref" : "PrivSubnet1" },
+          { "Ref" : "PrivSubnet2" }
+        ],
+        "Tags" : [
+          { "Key" : "Name", "Value"     : { "Fn::Join" : ["", [{ "Ref" : "vpcshortname"}, "-RDS-sub"]]}},
+          { "Key"  : "Stack", "Value"    : { "Ref" : "vpcshortname"} },
+          { "Key": "Acct", "Value": { "Ref" : "AWS::AccountId" } },
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackName" } },
+          { "Key" : "Theater", "Value" :  { "Ref" : "theatertagging"} }
+        ]
+      }
+    },
+
+    "CacheSubnetGroup" : {
+      "Type" : "AWS::ElastiCache::SubnetGroup",
+      "Properties" : {
+        "Description" : { "Fn::Join" : ["", [{ "Ref" : "vpcshortname"}, " Cache Subnet"]]},
+        "SubnetIds" : [
+          { "Ref" : "PrivSubnet1" },
+          { "Ref" : "PrivSubnet2" }
+        ]
+      }
+    },
+
+    "PrivateRouteAZ1toOffice" : {
+        "Type"        : "AWS::EC2::Route",
+        "Properties"  : {
+          "RouteTableId"          : { "Ref" : "PrivateRouteTableAZ1" },
+          "DestinationCidrBlock"  : { "Ref" : "officenetwork1"},
+          "NatGatewayId"             : { "Ref" : "NATAZ1" }
+        }
+      },
+
+    "PrivateRouteAZ2toOffice" : {
+        "Type"        : "AWS::EC2::Route",
+        "Properties"  : {
+          "RouteTableId"          : { "Ref" : "PrivateRouteTableAZ2" },
+          "DestinationCidrBlock"  : { "Ref" : "officenetwork1"},
+          "NatGatewayId"             : { "Ref" : "NATAZ1" }
+        }
+      },
+
+    "JumpHostDevice1" : {
+      "Type" : "AWS::EC2::Instance",
+      "Condition" : "DeployBastion",
+      "Properties" : {
+        "InstanceType" : { "Ref" : "instancesize" },
+        "KeyName"  : { "Ref" : "keypair" },
+        "IamInstanceProfile" : { "Ref" : "DefaultEC2InstanceProfile" },
+        "SourceDestCheck" : "false",
+        "NetworkInterfaces": [ {
+          "AssociatePublicIpAddress": "true",
+          "DeviceIndex": "0",
+          "GroupSet": [{ "Ref" : "SGDefault" },{ "Ref" : "CorpSG" }],
+          "SubnetId": { "Ref" : "PubSubnet1" }
+          } ],
+        "ImageId" : { "Ref" : "awsbaseami" },
+        "UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
+                          "#!/bin/bash\n",
+                          "sudo apt-add-repository -y ppa:ansible/ansible\n",
+                          "DEBIAN_FRONTEND=noninteractive\n",
+                          "apt-get update -y && apt-get upgrade -y\n",
+                          "apt-get install software-properties-common git asciidoc unzip htop jq tree vim python-pip ansible -y\n",
+                          "pip install --upgrade pip\n",
+                          "pip install boto boto3 distami httpie awscli netaddr -U \n",
+                          "mkdir /home/ubuntu/workfolder\n",
+                          "sudo reboot \n"
+                        ]]}},
+        "Tags": [
+          { "Key" : "Name", "Value"     : { "Fn::Join" : ["", [{ "Ref" : "theatertagging" }, "-jh-1"]]}},
+          { "Key"  : "Stack", "Value"    : { "Ref" : "AWS::StackName" } },
+          { "Key": "Acct", "Value": { "Ref" : "AWS::AccountId" } },
+          { "Key" : "Network", "Value" : "Public" },
+          { "Key" : "Theater", "Value" :  { "Ref" : "theatertagging" } },
+          { "Key" : "CostCenter", "Value" :  { "Ref" : "costcentertagging" } }
+        ]
+      }
+    }
+  },
+
+  "Outputs" : {
+    "VPCid" : {
+      "Description" : "VPCId of the Corp VPC",
+      "Value" :  { "Ref" : "VPC" },
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-vpcid"}}
+    },
+    "Pubsubnetid1" : {
+      "Description" : "SubnetId of the Public subnet1 az1",
+      "Value" :  { "Ref" : "PubSubnet1" },
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-pubsubnetid1"}}
+    },
+    "Pubsubnetid2" : {
+      "Description" : "SubnetId of the Public subnet2 az2",
+      "Value" :  { "Ref" : "PubSubnet2" },
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-pubsubnetid2"}}
+    },
+    "Privsubnetid1" : {
+      "Description" : "SubnetId of the Private subnet1 az1",
+      "Value" :  { "Ref" : "PrivSubnet1" },
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-privsubnetid1"}}
+    },
+    "Privsubnetid2" : {
+      "Description" : "SubnetId of the Private subnet2 az2",
+      "Value" :  { "Ref" : "PrivSubnet2" },
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-privsubnetid2"}}
+    },
+    "Pubsubnetid1CIDR" : {
+      "Description" : "CIDR of the Public subnet1 az1",
+      "Value" :  { "Ref" : "pubsubnetid1cidr"},
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-pubsubnetid1cidr"}}
+    },
+    "Pubsubnetid2CIDR" : {
+      "Description" : "CIDR of the Public subnet2 az2",
+      "Value" :  { "Ref" : "pubsubnetid2cidr"},
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-pubsubnetid2cidr"}}
+    },
+    "Privsubnetid1CIDR" : {
+      "Description" : "CIDR of the Private subnet1 az1",
+      "Value" :  { "Ref" : "privsubnetid1cidr"},
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-privsubnetid1cidr"}}
+    },
+    "Privsubnetid2CIDR" : {
+      "Description" : "CIDR of the Private subnet2 az2",
+      "Value" :  { "Ref" : "privsubnetid2cidr"},
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-privsubnetid2cidr"}}
+    },
+    "InternetGateway" : {
+      "Value" : { "Ref" : "GatewayToInternet" },
+      "Description" : "ID of Internet Gateway",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-internetgateway"}}
+    },
+    "S3Endpoint" : {
+      "Value" : { "Ref" : "S3Endpoint" },
+      "Description" : "ID of Endpoint used to access this regions S3 bucket.",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-s3endpoint"}}
+    },
+    "DynamoDBEndpoint" : {
+      "Value" : { "Ref" : "DynamoDBEndpoint" },
+      "Description" : "ID of Endpoint used to access this regions S3 bucket.",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-dynamodbendpoint"}}
+    },
+    "Publicroute" : {
+      "Value" : { "Ref" : "PublicRouteTable" },
+      "Description" : "Default Route Table",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-publicroute"}}
+    },
+    "PrivaterouteAZ1" : {
+      "Value" : { "Ref" : "PrivateRouteTableAZ1" },
+      "Description" : "Private az1 Route Table",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-privaterouteaz1"}}
+    },
+    "PrivaterouteAZ2" : {
+      "Value" : { "Ref" : "PrivateRouteTableAZ2" },
+      "Description" : "Private az2 Route Table",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-privaterouteaz2"}}
+    },
+    "NATAZ1" : {
+      "Value" : { "Ref" : "NATAZ1" },
+      "Description" : "NAT Service for az1",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-nataz1"}}
+    },
+    "SGDefault" : {
+      "Value" : { "Ref" : "SGDefault"} ,
+      "Description" : "Default Security Group",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-sgdefault"}}
+    },
+    "SGCorp" : {
+      "Value" : { "Ref" : "CorpSG"} ,
+      "Description" : "Default Corproate Security Group",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-sgcorp"}}
+    },
+    "CostCenterTagging" : {
+      "Description" : "Cost Center",
+      "Value" :  { "Ref" : "costcentertagging"},
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-costcentertagging"}}
+    },
+    "TheaterTagging" : {
+      "Description" : "What theater is this part of?",
+      "Value" :  { "Ref" : "theatertagging"},
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-theatertagging"}}
+    },
+    "awsaz1" : {
+      "Value" : { "Ref" : "awsaz1"},
+      "Description" : "Availability Zone AZ1",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-awsaz1"}}
+    },
+    "awsaz2" : {
+      "Value" : { "Ref" : "awsaz2"},
+      "Description" : "Availability Zone AZ2",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-awsaz2"}}
+    },
+    "RegionShortName" : {
+      "Value" : { "Ref" : "regionshortname"},
+      "Description" : "Shortname for the current Region",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-regionshortname"}}
+    },
+    "RDSSubnet" : {
+      "Value" : { "Ref" : "DBSubnetGroup" },
+      "Description" : "RDS Subnet ID",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-rdssubnet"}}
+    },
+    "CacheSubnet" : {
+      "Value" : { "Ref" : "CacheSubnetGroup" },
+      "Description" : "Cache Subnet ID",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-cachesubnet"}}
+    },
+    "DefaultEC2IAM" : {
+      "Value" : {"Ref" : "DefaultEC2InstanceRole" },
+      "Condition" : "DeployBastion",
+      "Description" : "EC2 IAM Role",
+      "Condition" : "DeployBastion",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-defaultec2iam"}}
+
+    },
+    "DefaultEC2IAMRole" : {
+      "Value" : {"Fn::GetAtt" : ["DefaultEC2InstanceRole", "Arn"] },
+      "Condition" : "DeployBastion",
+      "Description" : "EC2 IAM Role ARN",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-defaultec2iamrole"}}
+
+    },
+    "DefaultEC2IAMProfile" : {
+      "Value" :  {"Fn::GetAtt" : ["DefaultEC2InstanceProfile", "Arn"] },
+      "Condition" : "DeployBastion",
+      "Description" : "EC2 IAM Profile ARN",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-defaultec2iamprofile"}}
+    },
+    "BastionHostPublicIP" : {
+      "Condition" : "DeployBastion",
+      "Description" : "Public IP for BastionHost",
+      "Value" :  {"Fn::GetAtt" : ["JumpHostDevice1", "PublicIp"] },
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-bastionhostpublicip"}}
+    },
+    "BastionHostPrivateIP" : {
+      "Condition" : "DeployBastion",
+      "Description" : "Private IP for BastionHost",
+      "Value" :  {"Fn::GetAtt" : ["JumpHostDevice1", "PrivateIp"] },
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-bastionhostprivateip"}}
+    },
+    "CFSStackName" : {
+      "Value" : {"Ref" : "AWS::StackName"},
+      "Description" : "VPC Cloudformation Stack Name",
+      "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-cfsstackname"}}
+    }
+  }
+}

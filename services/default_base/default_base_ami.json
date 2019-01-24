@@ -6,21 +6,21 @@
     "subnet_id": "{{env `subnet_id`}}",
     "instance_type": "{{env `ec2_instance_type`}}",
     "service": "{{user `service`}}",
-    "wrk_home": "{{env `wrk_home`}}",
-    "service_name": "{{user `service_name`}}",
-    "s3_log_bucket": "{{user `s3_log_bucket`}}"
+    "wrk_home": "{{env `wrk_home`}}"
   },
   "builders": [
     {
     "type": "amazon-ebs",
+    "encrypt_boot": true,
+    "ami_block_device_mappings": "",
     "region": "{{user `region`}}",
     "source_ami": "{{user `source_ami`}}",
     "associate_public_ip_address": true,
-    "enhanced_networking": true,
-    "ssh_private_ip" : false,
+    "ena_support": true,
+    "ssh_interface" : "private_ip",
     "vpc_id": "{{user `vpc_id`}}",
     "subnet_id": "{{user `subnet_id`}}",
-    "instance_type": "m3.medium",
+    "instance_type": "t2.small",
     "ssh_username": "ubuntu",
     "ami_name": "default_base-{{user `service_name`}}-{{timestamp}}",
     "tags" : {
@@ -33,12 +33,11 @@
     {
       "type": "shell",
       "inline": [
+        "sudo apt-get clean",
         "sudo apt-get install -y software-properties-common",
         "sudo apt-add-repository ppa:ansible\/ansible -y",
         "sudo apt-get update",
-        "sudo apt-get install -y python-pip ansible ",
-        "sudo pip install --upgrade pip",
-        "sudo pip install awscli boto netaddr -U",
+        "sudo apt-get install -y ansible python-netaddr",
         "mkdir /tmp/ansible_files"
       ]
     },
@@ -57,9 +56,7 @@
         "--extra-vars",
         "local_install=yes",
         "--extra-vars",
-        "install_packages=yes",
-        "--extra-vars",
-        "s3_log_bucket={{user `s3_log_bucket`}}"
+        "install_packages=yes"
       ]
     }
   ]

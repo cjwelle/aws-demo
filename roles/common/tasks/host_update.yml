@@ -1,0 +1,12 @@
+---
+- name: Copy aws_env.sh to /usr/local/bin/host_update.sh
+  copy:
+    src: files/host_update.sh
+    dest: /usr/local/bin/host_update.sh
+    owner: root
+    group: root
+    mode: 0555
+  tags: common
+
+- name: Create link /usr/local/bin/host_update.sh to /etc/init.d/r53_shutdown
+  file: src=/opt/ops/r53_shutdown.sh dest=/etc/init.d/r53_shutdown owner=root group=root state=link

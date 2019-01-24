@@ -6,17 +6,36 @@
   connection: local
 
   tasks:
+    - name: current local user
+      run_once: True
+      set_fact:
+        ansible_local_user: "{{ lookup('pipe', 'id -un') | d(lookup('pipe', 'whoami'), True) | d(lookup('env', 'USER'), True) |  d(lookup('env', 'user'), True) |  d(lookup('env', 'LOGNAME'), True) }}"
+      failed_when: ansible_local_user == ''
+
     - name: Add Apt Ansible Repositories
-      apt_repository: repo={{ item }} state=present mode=644
-      with_items:
+      apt_repository:
+        repo: "{{ item }}"
+        state: "present"
+        mode: "644"
+        update_cache: yes
+        validate_certs: no
+      retries: 3
+      loop:
         - "ppa:ansible/ansible"
 
-    - name: Apt update
-      apt: update_cache=yes
+    - name: Upgrade all packages to the latest version
+      apt:
+        name: "*"
+        state: latest
+        force_apt_get: True
 
     - name: Install or update packages
-      apt: name={{ item }} state=latest
-      with_items:
+      apt:
+        name: "{{ item }}"
+        state: present
+        force_apt_get: True
+        force: yes
+      loop:
         - software-properties-common
         - git
         - python-pip
@@ -27,6 +46,17 @@
         - jq
         - tree
         - vim
+        - mosh
+
+    - name: Remove useless packages from the cache
+      apt:
+        autoclean: yes
+        force_apt_get: True
+
+    - name: Remove dependencies that are no longer required
+      apt:
+        autoremove: yes
+        force_apt_get: True
 
     - name: Install or update pip
       command: 'pip install pip --upgrade'
@@ -35,18 +65,39 @@
     - name: Install pip services
       command: 'pip install {{ item }}'
       become: true
-      with_items:
+      loop:
         - awscli
         - boto
         - netaddr
         - distami
         - httpie
+        - boto3
 
-    - name: Install Packer
-      unarchive: src=https://releases.hashicorp.com/packer/0.12.2/packer_0.12.2_linux_amd64.zip dest=/usr/local/bin/ copy=no
+    - name: Install Packer 1.3.3
+      unarchive:
+        src: https://releases.hashicorp.com/packer/1.3.3/packer_1.3.3_linux_amd64.zip
+        dest: /usr/local/bin/
+        copy: no
+        validate_certs: False
+
+    - name: Install Terraform 0.11.10
+      unarchive:
+        src: https://releases.hashicorp.com/terraform/0.11.11/terraform_0.11.11_linux_amd64.zip
+        dest: /usr/local/bin/
+        copy: no
+        validate_certs: False
 
     - name: Create Workfolder
-      file: path=/home/{{ansible_ssh_user}}/workfolder state=directory owner={{ansible_ssh_user}} group={{ansible_ssh_user}} mode=0555
+      file:
+        path: /home/{{ ansible_local_user }}/workfolder
+        state: directory
+        owner: "{{ ansible_local_user }}"
+        group: "{{ ansible_local_user }}"
+        mode: 0555
+      when: ansible_local_user != 'root'
 
     - name: Set wrk_folder env
-      lineinfile: dest=/home/{{ansible_ssh_user}}/.bashrc  line="export wrk_home=/home/{{ansible_ssh_user}}/workfolder"
+      lineinfile:
+        dest: /home/{{ ansible_local_user }}/.bashrc
+        line: "export wrk_home=/home/{{ ansible_local_user }}/workfolder"
+      when: ansible_local_user != 'root'

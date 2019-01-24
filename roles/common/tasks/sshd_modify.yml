@@ -1,0 +1,13 @@
+---
+- name: Setting SSHD Keep Alive
+  blockinfile:
+    path: /etc/ssh/sshd_config
+    backup: yes
+    content: |
+      #IT-Standard configuration
+      ClientAliveInterval 120
+      ClientAliveCountMax 45
+
+# #IT-Standard configuration
+# ClientAliveInterval 120
+# ClientAliveCountMax 45

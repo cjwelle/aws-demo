@@ -5,10 +5,10 @@ This repo is an example of using Ansible to launch AWS Cloudformation templates 
 - Create VPC's
 - Create Base AMI
 - Copy AMI's to other Regions
-- Cleanup Cloudformation Stacks. 
+- Cleanup Cloudformation Stacks.
 
 For more information see DOCUMENTS/Notes.html
 
 Created by Christopher Welle
 Originally Created on 01/2016
-Version Updated on 02/2017
+Version Updated on 01/2019

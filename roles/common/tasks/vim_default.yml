@@ -1,0 +1,4 @@
+---
+- name: Set vim as Default Editor
+  command: update-alternatives --set editor /usr/bin/vim.basic
+  tags: common

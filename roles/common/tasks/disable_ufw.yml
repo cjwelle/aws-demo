@@ -1,0 +1,5 @@
+---
+- name: Disable UFW
+  ufw:
+    state: disabled
+  tags: common

@@ -1,13 +1,16 @@
 ---
 - name: Default base
-  hosts: localhost
+  hosts: all
   connection: local
-  gather_facts: true
+  gather_facts: false
   become: true
-  vars:
-    s3_log_bucket: cc-syslogs
+  pre_tasks:
+    - name: Remove any Apt Locks
+      raw: sudo rm /var/lib/apt/lists/lock; sudo rm /var/cache/apt/archives/lock; sudo rm /var/lib/dpkg/lock
+    - name: Install python for Ansible
+      raw: test -e /usr/bin/python || (sudo apt -y update && apt install -y python-minimal)
+      register: output
+      changed_when: output.stdout != ""
   roles:
     - common
-    - s3_log_sync
-    - supervisord
     - cleanup

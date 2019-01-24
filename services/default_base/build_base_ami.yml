@@ -4,7 +4,7 @@
   gather_facts: False
   vars:
     service: default_base
-    ec2_instance_type: m3.medium
+    ec2_instance_type: t2.small
     service_name: ops
   roles:
     - create-base-ami

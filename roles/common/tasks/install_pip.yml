@@ -1,0 +1,20 @@
+---
+- name: Install or update pip
+  command: 'pip install pip --upgrade'
+  become: true
+  tags: common
+
+- name: Install pip services
+  command: 'pip install {{ item }} --upgrade --ignore-installed'
+  become: true
+  loop:
+    - pyOpenSSL
+    - ndg-httpsclient
+    - pyasn1
+    - awscli
+    - boto
+    - boto3
+    - netaddr
+    - distami
+    - httpie
+  tags: common

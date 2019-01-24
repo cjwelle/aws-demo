@@ -1,4 +1,9 @@
---- #Build Base-AMI Ubuntu Trusty 14.04 in region
+--- #Build Base-AMI Ubuntu Trusty 16.04 in region
+- name: Get Infra Stack facts
+  cloudformation_facts:
+    stack_name: "{{ infra_stack_name }}"
+    stack_resources: true
+    region: "{{ region }}"
 - name: Check for Source AMI
   fail: msg="Source AMI not found"
   failed_when: not (source_ami is defined and source_ami)
@@ -7,9 +12,10 @@
     packer build \
           -var "source_ami={{ source_ami }}" \
           -var "region={{ region }}" \
-          -var "vpc_id={{ vpc_id }}" \
-          -var "subnet_id={{ subnet_id }}" \
+          -var "vpc_id={{ cloudformation[infra_stack_name].stack_outputs.VPCid }}" \
+          -var "subnet_id={{ cloudformation[infra_stack_name].stack_outputs.Pubsubnetid1 }}" \
           -var "service_name={{ service_name }}" \
+          -var "service={{ service }}" \
           {{wrk_home}}/services/{{ service }}/{{ service }}_ami.json
   # args:
   #   chdir: playbooks/services/{{ service }}/

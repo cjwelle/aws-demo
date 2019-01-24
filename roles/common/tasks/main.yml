@@ -1,25 +1,25 @@
 ---
 
-- name: Update apt repos.
-  apt: update_cache=yes
+- name: Update and install Apt packages
+  include: apt_update_install.yml
 
-- name: Upgrade distribution
-  apt: upgrade=dist
+- name: Install Pip packages
+  include: install_pip.yml
 
-- name: Install common apt packages.
-  apt: name={{ item }}
-  with_items:
-    - python-netaddr
-    - python-dev
-    - python-pip
-    - unzip
-    - python-requests
-    - iftop
-    - sysstat
-    - jq
-    - htop
-    - wget
-    - curl
-    - vim
-    - awscli
-    - git
+- name: Disable UFW
+  include: disable_ufw.yml
+
+- name: Disable IP6
+  include: disable_ip6.yml
+
+- name: Make VIM Default editor
+  include: vim_default.yml
+
+- name: Adding sudoers file
+  include: sudoers_file.yml
+
+- name: Modifying SSHD
+  include: sshd_modify.yml
+
+- name: Adding IT_Standards file.
+  include: it_standards.yml
