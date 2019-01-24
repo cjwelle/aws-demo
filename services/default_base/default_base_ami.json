@@ -17,7 +17,7 @@
     "source_ami": "{{user `source_ami`}}",
     "associate_public_ip_address": true,
     "ena_support": true,
-    "ssh_interface" : "private_ip",
+    "ssh_interface" : "public_ip",
     "vpc_id": "{{user `vpc_id`}}",
     "subnet_id": "{{user `subnet_id`}}",
     "instance_type": "t2.small",
